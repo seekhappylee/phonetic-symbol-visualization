@@ -17,3 +17,6 @@ frontend/dist/
 
 # Zone.Identifier junk from Windows/WSL
 *:Zone.Identifier
+
+# Local Claude Code harness config
+.claude/
