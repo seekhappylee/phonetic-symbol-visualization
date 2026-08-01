@@ -48,9 +48,22 @@ class FormantsConfig:
 
 @dataclass
 class SegmentationConfig:
-    silence_split_ms: float = 400.0
+    # Continuous below-threshold time that separates two takes. Note the
+    # *detectable* silence is usually much shorter than the wall-clock pause
+    # (energy smears, breaths/tails intrude), so this is well under a "typical"
+    # pause. Raise it if one take gets split; lower it if takes still merge.
+    silence_split_ms: float = 220.0
     min_take_ms: float = 120.0
+    # Voicing threshold = noise_floor + max(threshold_db_above_floor,
+    #                                       threshold_range_ratio * dynamic_range)
+    # where noise_floor = percentile(noise_percentile) and dynamic_range =
+    # percentile(speech_percentile) - noise_floor. The range-relative term keeps
+    # low-level sounds between takes (breaths, room noise, vowel tails) *below*
+    # the threshold so adjacent takes don't merge; the dB term is a floor for
+    # very clean recordings with a tiny dynamic range.
     noise_percentile: float = 10.0
+    speech_percentile: float = 90.0
+    threshold_range_ratio: float = 0.40
     threshold_db_above_floor: float = 8.0
     frame_ms: float = 10.0
 

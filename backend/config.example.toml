@@ -34,11 +34,18 @@ time_step = 0.01            # s, frame step
 # and to pick the steady-state window inside each take.
 silence_split_ms = 400       # min continuous silence (ms) that separates takes
 min_take_ms = 120            # takes shorter than this are dropped (clicks/breaths)
-# Adaptive/relative energy threshold. The voicing threshold is set at
-# noise_floor + threshold_db_above_floor, where noise_floor is estimated from a
-# low percentile of the intensity contour. Never an absolute dB value.
+# Adaptive/relative energy threshold, placed within the recording's dynamic range:
+#   threshold = noise_floor + max(threshold_db_above_floor,
+#                                 threshold_range_ratio * (speech_level - noise_floor))
+# noise_floor  = intensity at noise_percentile (silence)
+# speech_level = intensity at speech_percentile (voiced level)
+# The range-relative term keeps breaths / room noise / vowel tails between takes
+# BELOW the threshold so adjacent takes don't merge. Raise threshold_range_ratio
+# if two takes still merge; lower it if a single take gets split. Never absolute.
 noise_percentile = 10.0      # percentile of intensity used as noise floor
-threshold_db_above_floor = 8.0
+speech_percentile = 90.0     # percentile representing voiced/speech level
+threshold_range_ratio = 0.35 # threshold at this fraction up the dynamic range
+threshold_db_above_floor = 8.0  # minimum offset above the floor (dB)
 frame_ms = 10                # intensity contour frame step (ms)
 
 [steady_state]

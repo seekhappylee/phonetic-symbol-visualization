@@ -38,24 +38,49 @@ class IntensityContour:
     dt: float  # frame step (s)
 
 
+# Bound the intensity contour to this many dB below its peak. Digital silence
+# gives -inf dB; near-silence gives extreme negatives. Left as-is, those outliers
+# dominate the percentiles used for the adaptive threshold. Clamping to
+# [peak - DYNAMIC_CLAMP_DB, peak] keeps the noise-floor / dynamic-range estimates
+# meaningful without distorting real speech (a real vowel-to-gap drop is <60 dB).
+DYNAMIC_CLAMP_DB = 60.0
+
+
 def intensity_contour(snd: parselmouth.Sound, cfg: SegmentationConfig) -> IntensityContour:
-    """Compute a dB intensity contour sampled at ~frame_ms."""
+    """Compute a dB intensity contour sampled at ~frame_ms, clamped to a sane
+    dynamic range so silence outliers don't corrupt the adaptive threshold."""
     time_step = max(cfg.frame_ms / 1000.0, 1e-3)
     # minimum_pitch drives the effective analysis window in Praat's intensity.
     intensity = snd.to_intensity(minimum_pitch=100.0, time_step=time_step, subtract_mean=True)
     values = intensity.values[0].astype(float)
     times = intensity.xs().astype(float)
-    # Replace -inf/NaN (silent frames) with a low finite floor for thresholding.
     finite = np.isfinite(values)
-    floor = float(np.min(values[finite])) if finite.any() else 0.0
-    values = np.where(finite, values, floor)
+    if finite.any():
+        peak = float(np.max(values[finite]))
+        floor = peak - DYNAMIC_CLAMP_DB
+        values = np.where(finite, values, floor)  # -inf/NaN -> floor
+        values = np.maximum(values, floor)        # clamp extreme negatives
+    else:
+        values = np.zeros_like(values)
     return IntensityContour(times=times, values=values, dt=time_step)
 
 
 def voicing_threshold(contour: IntensityContour, cfg: SegmentationConfig) -> float:
-    """Adaptive threshold: noise floor percentile + offset (dB)."""
+    """Adaptive threshold placed within the recording's dynamic range.
+
+    threshold = noise_floor + max(offset_dB, ratio * (speech_level - noise_floor))
+
+    The range-relative term is the important one: it sets the threshold a fixed
+    *fraction* of the way from silence up to speech level, so low-level sounds
+    between takes (breaths, room noise, a vowel's fading tail) fall below it and
+    adjacent takes stay separate. The dB offset is a lower bound so very clean
+    recordings (tiny dynamic range) still get a sane threshold.
+    """
     noise_floor = float(np.percentile(contour.values, cfg.noise_percentile))
-    return noise_floor + cfg.threshold_db_above_floor
+    speech_level = float(np.percentile(contour.values, cfg.speech_percentile))
+    dynamic_range = max(0.0, speech_level - noise_floor)
+    offset = max(cfg.threshold_db_above_floor, cfg.threshold_range_ratio * dynamic_range)
+    return noise_floor + offset
 
 
 def detect_segments(
