@@ -1,0 +1,31 @@
+# Single-service compose for the whole app (FastAPI serves API + built frontend).
+# Run from the repository root:
+#   docker compose -f docker/docker-compose.yml up --build
+services:
+  vowel-trainer:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: english-vowel-trainer:latest
+    ports:
+      - "8000:8000"
+    environment:
+      # --- config externalized via env (see backend/config.example.toml) ---
+      VOWEL_TRAINER_GENERAL_DEFAULT_GENDER: "male"
+      VOWEL_TRAINER_GENERAL_FRONTEND_DIST: "/app/frontend/dist"
+      # Same-origin serving => no CORS origins needed. Add comma-separated
+      # origins here if you split the frontend onto another host.
+      VOWEL_TRAINER_CORS_ALLOW_ORIGINS: ""
+      # Formant ceilings / segmentation / QC can all be tuned here, e.g.:
+      # VOWEL_TRAINER_FORMANTS_MAX_FREQUENCY_MALE: "5000"
+      # VOWEL_TRAINER_SEGMENTATION_SILENCE_SPLIT_MS: "400"
+    volumes:
+      # Optional: mount demonstration audio without rebuilding the image.
+      - ../backend/app/data/demo_audio:/app/backend/app/data/demo_audio:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

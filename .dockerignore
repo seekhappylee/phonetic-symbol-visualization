@@ -1,0 +1,16 @@
+# Keep the build context small and reproducible.
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+.git
+.gitignore
+.claude
+backend/config.toml
+frontend/.env
+frontend/.env.local
+docker
+*.md
+!backend/README.md
+**/*:Zone.Identifier
