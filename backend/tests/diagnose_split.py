@@ -47,40 +47,29 @@ def build_two_takes_with_breath(breath_amp: float):
     return parselmouth.Sound(sig, sampling_frequency=fs)
 
 
-def count_with_ratio(snd, ratio: float) -> tuple[int, float]:
+def stats(snd) -> dict:
     cfg = copy.deepcopy(settings)
-    cfg.segmentation.threshold_range_ratio = ratio
     contour = intensity_contour(snd, cfg.segmentation)
     thr = voicing_threshold(contour, cfg.segmentation)
     takes, _ = split_takes(snd, cfg.segmentation)
-    return len(takes), thr
-
-
-def longest_silence_ms(snd, ratio: float) -> float:
-    """Longest continuous below-threshold stretch (the detectable inter-take gap)."""
-    cfg = copy.deepcopy(settings)
-    cfg.segmentation.threshold_range_ratio = ratio
-    contour = intensity_contour(snd, cfg.segmentation)
-    thr = voicing_threshold(contour, cfg.segmentation)
-    silent = contour.values <= thr
-    best = cur = 0
-    for s in silent:
-        cur = cur + 1 if s else 0
-        best = max(best, cur)
-    return best * contour.dt * 1000.0
+    return {
+        "takes": len(takes),
+        "thr": thr,
+        "peak": float(np.percentile(contour.values, cfg.segmentation.peak_percentile)),
+        "floor": float(np.percentile(contour.values, cfg.segmentation.noise_percentile)),
+    }
 
 
 if __name__ == "__main__":
-    print("recorded 2 takes with a breath filling the gap between them.")
-    print("gap authored = 400 ms; silence_split_ms default =", settings.segmentation.silence_split_ms, "\n")
-    ratio = settings.segmentation.threshold_range_ratio
-    print(f"{'breath_amp':>10} | {'OLD takes':>9} | {'NEW takes':>9} | {'NEW gap(ms)':>11}")
-    print("-" * 52)
-    for amp in (0.006, 0.012, 0.02, 0.04):
-        snd = build_two_takes_with_breath(amp)
-        old_n, _ = count_with_ratio(snd, 0.0)
-        new_n, _ = count_with_ratio(snd, ratio)
-        gap = longest_silence_ms(snd, ratio)
-        print(f"{amp:>10.3f} | {old_n:>9} | {new_n:>9} | {gap:>11.0f}")
-    print("\nIf NEW gap(ms) < silence_split_ms, the two takes still merge because")
-    print("the detectable silence is shorter than the required split gap.")
+    seg = settings.segmentation
+    print("Peak-driven threshold = max(peak - voiced_drop_db, floor + offset)")
+    print(f"peak_percentile={seg.peak_percentile}  voiced_drop_db={seg.voiced_drop_db}"
+          f"  silence_split_ms={seg.silence_split_ms}\n")
+    print("Two vowel takes with a breath in the gap, breath level vs the vowel peak:")
+    print(f"{'breath_amp':>10} | {'peak':>6} {'floor':>6} {'thr':>6} | {'takes':>5}")
+    print("-" * 46)
+    for amp in (0.006, 0.012, 0.02, 0.04, 0.08):
+        s = stats(build_two_takes_with_breath(amp))
+        print(f"{amp:>10.3f} | {s['peak']:>6.1f} {s['floor']:>6.1f} {s['thr']:>6.1f}"
+              f" | {s['takes']:>5}")
+    print("\nExpect 2 takes: the breath sits below the peak-drop threshold.")

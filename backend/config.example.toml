@@ -34,18 +34,19 @@ time_step = 0.01            # s, frame step
 # and to pick the steady-state window inside each take.
 silence_split_ms = 400       # min continuous silence (ms) that separates takes
 min_take_ms = 120            # takes shorter than this are dropped (clicks/breaths)
-# Adaptive/relative energy threshold, placed within the recording's dynamic range:
-#   threshold = noise_floor + max(threshold_db_above_floor,
-#                                 threshold_range_ratio * (speech_level - noise_floor))
-# noise_floor  = intensity at noise_percentile (silence)
-# speech_level = intensity at speech_percentile (voiced level)
-# The range-relative term keeps breaths / room noise / vowel tails between takes
-# BELOW the threshold so adjacent takes don't merge. Raise threshold_range_ratio
-# if two takes still merge; lower it if a single take gets split. Never absolute.
+# Peak-driven voicing threshold (works well when background noise is low and each
+# vowel reaches near the same peak level):
+#   threshold = max(peak_level - voiced_drop_db,          # dominant term
+#                   noise_floor + threshold_db_above_floor) # noisy-recording net
+# peak_level = intensity at peak_percentile (high percentile, robust to clicks).
+# Frames within voiced_drop_db of the peak are voicing; quieter inter-take sounds
+# (breaths, vowel tails, room noise) fall below and keep takes separate.
+# - Two takes still merge (a loud breath between them)? LOWER voiced_drop_db (e.g. 20).
+# - One take gets split into two? RAISE voiced_drop_db (e.g. 30).
+peak_percentile = 95.0       # percentile used as the "peak/voiced" level
+voiced_drop_db = 25.0        # frames within this many dB of the peak are voicing
 noise_percentile = 10.0      # percentile of intensity used as noise floor
-speech_percentile = 90.0     # percentile representing voiced/speech level
-threshold_range_ratio = 0.35 # threshold at this fraction up the dynamic range
-threshold_db_above_floor = 8.0  # minimum offset above the floor (dB)
+threshold_db_above_floor = 8.0  # safety-net offset above the floor (dB)
 frame_ms = 10                # intensity contour frame step (ms)
 
 [steady_state]

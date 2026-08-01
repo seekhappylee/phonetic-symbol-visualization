@@ -54,16 +54,18 @@ class SegmentationConfig:
     # pause. Raise it if one take gets split; lower it if takes still merge.
     silence_split_ms: float = 220.0
     min_take_ms: float = 120.0
-    # Voicing threshold = noise_floor + max(threshold_db_above_floor,
-    #                                       threshold_range_ratio * dynamic_range)
-    # where noise_floor = percentile(noise_percentile) and dynamic_range =
-    # percentile(speech_percentile) - noise_floor. The range-relative term keeps
-    # low-level sounds between takes (breaths, room noise, vowel tails) *below*
-    # the threshold so adjacent takes don't merge; the dB term is a floor for
-    # very clean recordings with a tiny dynamic range.
+    # Voicing threshold is PEAK-driven (works well when background noise is low
+    # and every vowel reaches near the same peak level):
+    #   threshold = max(peak_level - voiced_drop_db,          # dominant term
+    #                   noise_floor + threshold_db_above_floor) # safety net
+    # peak_level = intensity at peak_percentile (a high percentile, not the raw
+    # max, so a single click can't blow it out). Frames within voiced_drop_db of
+    # the peak count as voicing; quieter sounds between takes (breaths, tails,
+    # room noise) fall below and keep adjacent takes separate. The noise-floor
+    # term only kicks in for unusually noisy recordings.
+    peak_percentile: float = 95.0
+    voiced_drop_db: float = 25.0
     noise_percentile: float = 10.0
-    speech_percentile: float = 90.0
-    threshold_range_ratio: float = 0.40
     threshold_db_above_floor: float = 8.0
     frame_ms: float = 10.0
 

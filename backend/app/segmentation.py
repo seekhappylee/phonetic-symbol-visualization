@@ -66,21 +66,23 @@ def intensity_contour(snd: parselmouth.Sound, cfg: SegmentationConfig) -> Intens
 
 
 def voicing_threshold(contour: IntensityContour, cfg: SegmentationConfig) -> float:
-    """Adaptive threshold placed within the recording's dynamic range.
+    """Peak-driven voicing threshold (with a noise-floor safety net).
 
-    threshold = noise_floor + max(offset_dB, ratio * (speech_level - noise_floor))
+    threshold = max(peak_level - voiced_drop_db,          # dominant
+                    noise_floor + threshold_db_above_floor) # safety net
 
-    The range-relative term is the important one: it sets the threshold a fixed
-    *fraction* of the way from silence up to speech level, so low-level sounds
-    between takes (breaths, room noise, a vowel's fading tail) fall below it and
-    adjacent takes stay separate. The dB offset is a lower bound so very clean
-    recordings (tiny dynamic range) still get a sane threshold.
+    peak_level is a high percentile of intensity (robust to transient clicks).
+    Frames within voiced_drop_db of the peak are voicing; quieter inter-take
+    sounds (breaths, tails, room noise) fall below and keep takes separate. The
+    noise-floor term only dominates for unusually noisy recordings, preventing
+    the peak term from ever dipping into the noise.
     """
+    peak_level = float(np.percentile(contour.values, cfg.peak_percentile))
     noise_floor = float(np.percentile(contour.values, cfg.noise_percentile))
-    speech_level = float(np.percentile(contour.values, cfg.speech_percentile))
-    dynamic_range = max(0.0, speech_level - noise_floor)
-    offset = max(cfg.threshold_db_above_floor, cfg.threshold_range_ratio * dynamic_range)
-    return noise_floor + offset
+    return max(
+        peak_level - cfg.voiced_drop_db,
+        noise_floor + cfg.threshold_db_above_floor,
+    )
 
 
 def detect_segments(
