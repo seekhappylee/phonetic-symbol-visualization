@@ -37,8 +37,19 @@ class VowelsResponse(BaseModel):
     vowels: list[VowelReference]
 
 
+class SegmentSpec(BaseModel):
+    """A client-supplied analysis region (from the waveform editor). Times in ms
+    relative to the start of the recording. steady_* is the sub-window actually
+    measured; if omitted the backend picks the central mid-window."""
+
+    start_ms: float
+    end_ms: float
+    steady_start_ms: Optional[float] = None
+    steady_end_ms: Optional[float] = None
+
+
 class Take(BaseModel):
-    """One pass of the target vowel, auto-segmented from the recording."""
+    """One pass of the target vowel, auto-segmented or explicitly specified."""
 
     index: int
     f0: Optional[float] = None
@@ -48,6 +59,9 @@ class Take(BaseModel):
     start_ms: float
     end_ms: float
     duration_ms: float
+    # The steady-state sub-window actually analyzed (for waveform display).
+    steady_start_ms: Optional[float] = None
+    steady_end_ms: Optional[float] = None
     quality: Quality
     distance_to_target: Optional[float] = None
     # Human-readable articulatory hint, e.g. "舌位偏后（F2 偏低）".

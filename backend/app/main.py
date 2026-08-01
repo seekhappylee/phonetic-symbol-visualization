@@ -2,15 +2,24 @@
 
 from __future__ import annotations
 
+import json
+
 import parselmouth
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 
 from .audio import AudioDecodeError, ffmpeg_available, load_sound
 from .config import settings
-from .models import AnalyzeResponse, Gender, HealthResponse, VowelsResponse
+from .models import (
+    AnalyzeResponse,
+    Gender,
+    HealthResponse,
+    SegmentSpec,
+    VowelsResponse,
+)
 from .pipeline import analyze_recording
 from .reference import load_reference, vowels_response
 
@@ -73,10 +82,16 @@ async def analyze_formants(
     file: UploadFile = File(..., description="一整段录音（可含多遍）"),
     target_vowel_id: str | None = Form(default=None),
     gender: str | None = Form(default=None),
+    segments: str | None = Form(
+        default=None,
+        description="可选 JSON 区段数组；提供则按指定区段分析、跳过自动分遍。",
+    ),
 ) -> AnalyzeResponse:
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="上传的音频为空。")
+
+    explicit = _parse_segments(segments)
 
     try:
         snd: parselmouth.Sound = load_sound(data, file.filename)
@@ -91,7 +106,20 @@ async def analyze_formants(
         gender=_resolve_gender(gender),
         target_vowel_id=target_vowel_id,
         cfg=settings,
+        explicit_segments=explicit,
     )
+
+
+def _parse_segments(raw: str | None) -> list[SegmentSpec] | None:
+    if not raw or not raw.strip():
+        return None
+    try:
+        items = json.loads(raw)
+        if not isinstance(items, list):
+            raise ValueError("segments 必须是数组")
+        return [SegmentSpec(**item) for item in items]
+    except (json.JSONDecodeError, ValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=f"segments 解析失败：{exc}") from exc
 
 
 @app.exception_handler(Exception)

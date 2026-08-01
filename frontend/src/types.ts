@@ -38,9 +38,28 @@ export interface Take {
   start_ms: number;
   end_ms: number;
   duration_ms: number;
+  steady_start_ms: number | null;
+  steady_end_ms: number | null;
   quality: Quality;
   distance_to_target: number | null;
   hint: string | null;
+}
+
+/** A client-specified analysis region sent to the backend (waveform editor). */
+export interface SegmentSpec {
+  start_ms: number;
+  end_ms: number;
+  steady_start_ms?: number | null;
+  steady_end_ms?: number | null;
+}
+
+/** A take region being edited on the waveform (client-side geometry). */
+export interface EditableSegment {
+  id: string;
+  start_ms: number;
+  end_ms: number;
+  steady_start_ms: number;
+  steady_end_ms: number;
 }
 
 export interface Summary {

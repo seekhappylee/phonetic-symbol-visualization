@@ -550,6 +550,126 @@ figcaption {
   margin-bottom: 4px;
 }
 
+/* ------------------------------------------------------ waveform editor */
+.waveform-editor {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-top: 14px;
+}
+.wave-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.btn.ghost {
+  background: #eef1f7;
+  color: #334;
+}
+.btn.ghost:hover:not(:disabled) {
+  background: #e3e8f2;
+}
+.dirty-tag {
+  font-size: 0.78rem;
+  color: var(--warn);
+  font-weight: 600;
+}
+.waveform {
+  width: 100%;
+  height: 140px;
+  display: block;
+  border-radius: 8px;
+  touch-action: none;
+  user-select: none;
+}
+.waveform.adding {
+  cursor: crosshair;
+}
+.wave-idx {
+  fill: #cbd5e1;
+  font-size: 11px;
+  font-weight: 700;
+}
+.edge-handle:hover line {
+  stroke-width: 2.5;
+}
+.wave-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: 8px 2px 4px;
+}
+.wave-legend .sw {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+.wave-legend .sw.take {
+  background: rgba(91, 139, 240, 0.15);
+  border: 1px solid #8baaf0;
+}
+.wave-legend .sw.steady {
+  background: rgba(34, 197, 94, 0.35);
+}
+
+.seg-list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.seg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  padding: 6px 8px;
+  background: #f7f8fb;
+  border-radius: 8px;
+}
+.seg-no {
+  font-weight: 700;
+  color: #334;
+}
+.seg-time {
+  color: var(--muted);
+  flex: 1 1 220px;
+}
+.seg-info.q-ok {
+  color: #166534;
+  font-weight: 600;
+}
+.seg-info.q-low_energy,
+.seg-info.q-too_short,
+.seg-info.q-formant_unreliable {
+  color: #991b1b;
+  font-weight: 600;
+}
+.btn.tiny {
+  padding: 3px 9px;
+  font-size: 0.76rem;
+  border-radius: 6px;
+  background: #e5e9f2;
+  color: #334;
+}
+.btn.tiny.green {
+  background: #dcfce7;
+  color: #166534;
+}
+.btn.tiny.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 @media (max-width: 900px) {
   .two-charts,
   .practice-grid {

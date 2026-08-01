@@ -2,6 +2,7 @@ import type {
   AnalyzeResponse,
   Gender,
   HealthResponse,
+  SegmentSpec,
   VowelsResponse,
 } from "../types";
 
@@ -37,13 +38,19 @@ export async function fetchVowels(gender: Gender): Promise<VowelsResponse> {
 export async function analyzeFormants(
   audio: Blob,
   gender: Gender,
-  targetVowelId: string | null
+  targetVowelId: string | null,
+  segments?: SegmentSpec[] | null
 ): Promise<AnalyzeResponse> {
   const form = new FormData();
   const ext = audio.type.includes("wav") ? "wav" : "webm";
   form.append("file", audio, `recording.${ext}`);
   form.append("gender", gender);
   if (targetVowelId) form.append("target_vowel_id", targetVowelId);
+  // When segments are provided, the backend analyzes exactly these ranges and
+  // skips auto-splitting (waveform editor: review / adjust / manual re-slice).
+  if (segments && segments.length > 0) {
+    form.append("segments", JSON.stringify(segments));
+  }
   return handle<AnalyzeResponse>(
     await fetch(`${API_BASE}/api/analyze/formants`, {
       method: "POST",

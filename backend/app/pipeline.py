@@ -2,6 +2,13 @@
 
 Orchestrates the modules per dev doc §6.2:
     transcode -> VAD split -> per-take steady window -> F0/F1/F2/F3 -> QC -> stats
+
+Two modes:
+  * Auto (no explicit segments): VAD auto-splits the recording into takes and
+    picks each take's steady window.
+  * Explicit (client supplies segments): analyze exactly the given take ranges
+    (and optional steady sub-ranges), skipping VAD. This backs the frontend's
+    waveform editor, where the user reviews / adjusts / manually re-slices.
 """
 
 from __future__ import annotations
@@ -11,10 +18,16 @@ import parselmouth
 
 from .analysis import f0_median, flattest_subwindow, formant_track, sample_formants
 from .config import Config
-from .models import AnalyzeResponse, Gender, Summary, Take
+from .models import AnalyzeResponse, Gender, SegmentSpec, Summary, Take
 from .quality import assess_take
 from .reference import articulatory_hint, distance_to_target, target_for
-from .segmentation import Segment, split_takes, steady_state_window
+from .segmentation import (
+    Segment,
+    intensity_contour,
+    split_takes,
+    steady_state_window,
+    voicing_threshold,
+)
 
 
 def analyze_recording(
@@ -22,22 +35,35 @@ def analyze_recording(
     gender: Gender,
     target_vowel_id: str | None,
     cfg: Config,
+    explicit_segments: list[SegmentSpec] | None = None,
 ) -> AnalyzeResponse:
     warnings: list[str] = []
+    total_s = snd.get_total_duration()
 
-    takes_seg, contour = split_takes(snd, cfg.segmentation)
-    if not takes_seg:
-        # Fallback: treat the whole recording as one take so the user still gets
-        # a result and a clear message (manual fallback lives in the frontend).
-        total = snd.get_total_duration()
-        takes_seg = [Segment(0.0, total)]
-        warnings.append(
-            "未检测到清晰的发声段（可能录音过弱或环境噪声高）。已按整段分析；"
-            "如录了多遍，请调高音量或改用逐遍录音。"
-        )
+    # Resolve the list of (take segment, steady window) pairs.
+    if explicit_segments is not None:
+        pairs = _resolve_explicit(explicit_segments, total_s, cfg)
+        contour = intensity_contour(snd, cfg.segmentation)
+        if not pairs:
+            warnings.append("未提供有效的分析区段。")
+    else:
+        takes_seg, contour = split_takes(snd, cfg.segmentation)
+        if not takes_seg:
+            # Fallback: treat the whole recording as one take so the user still
+            # gets a result and a clear message (manual editing lives in the UI).
+            takes_seg = [Segment(0.0, total_s)]
+            warnings.append(
+                "未检测到清晰的发声段（可能录音过弱或环境噪声高）。已按整段分析；"
+                "如录了多遍，请在波形图上手动调整切分。"
+            )
+        pairs = [(seg, _auto_steady(seg, cfg)) for seg in takes_seg]
 
-    # One formant object over the whole recording; sampled per take window.
+    # One formant object over the whole recording; sampled per steady window.
     formant, times = formant_track(snd, gender, cfg.formants)
+    if cfg.steady_state.use_flattest_window and explicit_segments is None:
+        pairs = [(seg, flattest_subwindow(formant, times, win, cfg.steady_state))
+                 for seg, win in pairs]
+
     target = target_for(gender, target_vowel_id)
 
     takes: list[Take] = []
@@ -45,13 +71,8 @@ def analyze_recording(
     valid_f2: list[float] = []
     valid_dist: list[float] = []
 
-    for i, seg in enumerate(takes_seg, start=1):
+    for i, (seg, window) in enumerate(pairs, start=1):
         duration_ms = seg.duration_s * 1000.0
-
-        window = steady_state_window(seg, cfg.steady_state)
-        if cfg.steady_state.use_flattest_window:
-            window = flattest_subwindow(formant, times, window, cfg.steady_state)
-
         frames = sample_formants(formant, times, window)
         result = assess_take(
             frames,
@@ -70,6 +91,8 @@ def analyze_recording(
             start_ms=round(seg.start_s * 1000.0, 1),
             end_ms=round(seg.end_s * 1000.0, 1),
             duration_ms=round(duration_ms, 1),
+            steady_start_ms=round(window.start_s * 1000.0, 1),
+            steady_end_ms=round(window.end_s * 1000.0, 1),
             quality=result.quality,
         )
 
@@ -99,10 +122,40 @@ def analyze_recording(
     )
 
 
+def _auto_steady(seg: Segment, cfg: Config) -> Segment:
+    return steady_state_window(seg, cfg.steady_state)
+
+
+def _resolve_explicit(
+    specs: list[SegmentSpec], total_s: float, cfg: Config
+) -> list[tuple[Segment, Segment]]:
+    """Turn client-supplied specs into clamped (take, steady) segment pairs."""
+    pairs: list[tuple[Segment, Segment]] = []
+    for spec in specs:
+        start = _clamp(spec.start_ms / 1000.0, 0.0, total_s)
+        end = _clamp(spec.end_ms / 1000.0, 0.0, total_s)
+        if end - start < 0.01:  # ignore degenerate segments (<10 ms)
+            continue
+        take = Segment(start_s=start, end_s=end)
+
+        if spec.steady_start_ms is not None and spec.steady_end_ms is not None:
+            ss = _clamp(spec.steady_start_ms / 1000.0, start, end)
+            se = _clamp(spec.steady_end_ms / 1000.0, start, end)
+            steady = Segment(start_s=min(ss, se), end_s=max(ss, se))
+            if steady.duration_s < 0.01:
+                steady = _auto_steady(take, cfg)
+        else:
+            steady = _auto_steady(take, cfg)
+        pairs.append((take, steady))
+    return pairs
+
+
+def _clamp(v: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, v))
+
+
 def _is_low_energy(contour, seg: Segment, cfg: Config) -> bool:
     """A take whose peak intensity barely exceeds the noise floor is low energy."""
-    from .segmentation import voicing_threshold
-
     mask = (contour.times >= seg.start_s) & (contour.times <= seg.end_s)
     if not mask.any():
         return True
@@ -110,9 +163,7 @@ def _is_low_energy(contour, seg: Segment, cfg: Config) -> bool:
     return peak <= voicing_threshold(contour, cfg.segmentation)
 
 
-def _summarize(
-    f1: list[float], f2: list[float], dist: list[float]
-) -> Summary:
+def _summarize(f1: list[float], f2: list[float], dist: list[float]) -> Summary:
     if not f1:
         return Summary(valid_count=0)
     return Summary(
