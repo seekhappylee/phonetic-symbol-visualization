@@ -1,0 +1,17 @@
+[project]
+name = "english-vowel-trainer-backend"
+version = "0.1.0"
+description = "Backend for the British English (RP) vowel pronunciation trainer: formant analysis via praat-parselmouth."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "praat-parselmouth>=0.4.3",
+    "numpy>=1.26",
+    "python-multipart>=0.0.9",
+]
+
+# The backend is run in-place (uv run uvicorn app.main:app), not installed as a
+# package, so we don't need a build backend.
+[tool.uv]
+package = false

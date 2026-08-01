@@ -1,0 +1,60 @@
+# English Vowel Trainer — backend configuration (example).
+# Copy to `config.toml` and edit as needed. Every value can also be overridden by
+# an environment variable named  VOWEL_TRAINER_<SECTION>_<KEY>  (uppercased),
+# e.g.  VOWEL_TRAINER_FORMANTS_MAX_FREQUENCY_MALE=5000
+# Env vars take precedence over this file. Nothing is hardcoded in the app.
+
+[general]
+# Gender basis for the default reference targets returned by /api/vowels.
+# "male" | "female". Formant frequencies differ significantly by gender.
+default_gender = "male"
+# Path to the reference vowel data (relative to backend/ or absolute).
+reference_data_path = "app/data/vowels_rp.json"
+# Directory holding demonstration audio (optional; may be empty in stage 1).
+demo_audio_dir = "app/data/demo_audio"
+# Absolute path to a built frontend `dist/` to serve as static files.
+# Leave empty during split dev (Vite serves the frontend). Set for single-container.
+frontend_dist = ""
+
+[cors]
+# Allowed origins for the dev frontend. Add your Vite dev URL(s).
+allow_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+[formants]
+# Praat Burg formant analysis (analysis.py).
+max_formants = 5            # max number of formants
+max_frequency_male = 5000   # Hz, ceiling for male voices
+max_frequency_female = 5500 # Hz, ceiling for female voices
+window_length = 0.025       # s, analysis window
+pre_emphasis = 50.0         # Hz
+time_step = 0.01            # s, frame step
+
+[segmentation]
+# Shared energy endpoint detection (segmentation.py), used both to split takes
+# and to pick the steady-state window inside each take.
+silence_split_ms = 400       # min continuous silence (ms) that separates takes
+min_take_ms = 120            # takes shorter than this are dropped (clicks/breaths)
+# Adaptive/relative energy threshold. The voicing threshold is set at
+# noise_floor + threshold_db_above_floor, where noise_floor is estimated from a
+# low percentile of the intensity contour. Never an absolute dB value.
+noise_percentile = 10.0      # percentile of intensity used as noise floor
+threshold_db_above_floor = 8.0
+frame_ms = 10                # intensity contour frame step (ms)
+
+[steady_state]
+# Steady-state extraction inside each take (segmentation.py / analysis.py).
+mid_window_ratio = 0.5       # fraction of the take (centered) used as steady window
+# Optional upgrade: slide a small window and pick the flattest (min-variance) one.
+use_flattest_window = false
+flattest_window_ms = 40
+
+[quality]
+# Formant plausibility (quality.py). Frames/takes outside these ranges are flagged.
+f1_min = 200
+f1_max = 1200
+f2_min = 600
+f2_max = 3200
+f3_min = 1500
+f3_max = 4000
+# A take needs at least this fraction of valid frames to be accepted.
+min_valid_frame_ratio = 0.5

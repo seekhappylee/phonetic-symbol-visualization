@@ -1,0 +1,19 @@
+# Python / backend
+backend/.venv/
+__pycache__/
+*.pyc
+backend/config.toml
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+*.local
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Zone.Identifier junk from Windows/WSL
+*:Zone.Identifier
