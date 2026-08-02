@@ -25,6 +25,12 @@ ENV_PREFIX = "VOWEL_TRAINER_"
 class GeneralConfig:
     default_gender: str = "male"
     reference_data_path: str = "app/data/vowels_rp.json"
+    # Directory of optional secondary datasets overlaid (display-only) on the
+    # F1-F2 chart for comparison; each *.json is one dataset. Empty dir is fine.
+    reference_overlays_dir: str = "app/data/overlays"
+    # Persistent storage for user-built reference sets (their own recordings):
+    # one sub-dir per set with meta.json + audio/. Created on demand.
+    reference_sets_dir: str = "data/reference_sets"
     demo_audio_dir: str = "app/data/demo_audio"
     frontend_dist: str = ""
 
@@ -99,6 +105,12 @@ class Config:
 
     def reference_path(self) -> Path:
         return self._resolve(self.general.reference_data_path)
+
+    def overlays_path(self) -> Path:
+        return self._resolve(self.general.reference_overlays_dir)
+
+    def reference_sets_path(self) -> Path:
+        return self._resolve(self.general.reference_sets_dir)
 
     def demo_audio_path(self) -> Path:
         return self._resolve(self.general.demo_audio_dir)

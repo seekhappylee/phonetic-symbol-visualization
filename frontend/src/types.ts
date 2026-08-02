@@ -29,6 +29,61 @@ export interface VowelsResponse {
   vowels: VowelReference[];
 }
 
+/** One vowel centroid from a secondary (display-only) reference dataset. */
+export interface OverlayVowel {
+  id: string;
+  f1_mean: number | null;
+  f2_mean: number | null;
+  f1_sd: number | null;
+  f2_sd: number | null;
+}
+
+/** An extra literature dataset overlaid on the F1-F2 chart for comparison.
+ *  It does NOT drive analysis/scoring (that stays on the primary reference). */
+export interface ReferenceOverlay {
+  id: string;
+  label: string;
+  source: string;
+  note?: string | null;
+  statistic: string; // "mean" | "median" | ...
+  gender: Gender;
+  has_data: boolean;
+  vowels: OverlayVowel[];
+}
+
+export interface OverlaysResponse {
+  gender: Gender;
+  overlays: ReferenceOverlay[];
+}
+
+/** One analyzed vowel inside a user-built reference set (their own audio). */
+export interface ReferenceSetVowel {
+  id: string;
+  f1_mean: number | null;
+  f2_mean: number | null;
+  f3_mean: number | null;
+  start_ms: number | null;
+  end_ms: number | null;
+  steady_start_ms: number | null;
+  steady_end_ms: number | null;
+  quality: Quality | null;
+  has_audio: boolean;
+}
+
+/** A user-created "standard" F1/F2 set, selectable as the comparison target. */
+export interface ReferenceSet {
+  id: string;
+  name: string;
+  gender: Gender;
+  created_at: string;
+  updated_at: string;
+  vowels: ReferenceSetVowel[];
+}
+
+export interface ReferenceSetsResponse {
+  sets: ReferenceSet[];
+}
+
 export interface Take {
   index: number;
   f0: number | null;

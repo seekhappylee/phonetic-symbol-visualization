@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { EditableSegment, Take } from "../types";
 import { QUALITY_LABELS } from "../types";
 import { computePeaks, playRegion, type PlayHandle } from "../audio/audioBuffer";
+import SteadyStateHelp from "./SteadyStateHelp";
 
 interface Props {
   buffer: AudioBuffer;
@@ -48,8 +49,23 @@ export default function WaveformEditor({
   const [addMode, setAddMode] = useState(false);
   const [playing, setPlaying] = useState<PlayHandle | null>(null);
   const [playhead, setPlayhead] = useState<number | null>(null); // ms
+  // Horizontal zoom: stretch the waveform wider than its container so the user
+  // can scroll and place the steady window far more precisely.
+  const [zoom, setZoom] = useState(1);
 
   const peaksPath = useMemo(() => buildPeaksPath(buffer), [buffer]);
+
+  // Time gridlines: aim for a readable number of divisions across the (zoomed)
+  // width. Step shrinks as zoom grows so finer selection stays oriented.
+  const gridTicks = useMemo(() => {
+    const targetDivs = 8 * zoom;
+    const rawStep = totalMs / targetDivs;
+    const nice = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+    const step = nice.find((s) => s >= rawStep) ?? 5000;
+    const ticks: number[] = [];
+    for (let ms = step; ms < totalMs; ms += step) ticks.push(ms);
+    return ticks;
+  }, [totalMs, zoom]);
 
   const msToX = useCallback((ms: number) => (ms / totalMs) * VB_W, [totalMs]);
   const xToMs = useCallback(
@@ -219,17 +235,55 @@ export default function WaveformEditor({
           {busy ? "分析中…" : `重新分析（${segments.length} 段）`}
         </button>
         {dirty && <span className="dirty-tag">切分已改动，请点「重新分析」</span>}
+        <span className="wave-zoom">
+          横轴缩放
+          <input
+            type="range"
+            min={1}
+            max={12}
+            step={0.5}
+            value={zoom}
+            onChange={(e) => setZoom(Number(e.target.value))}
+            title="拉长横轴，做更细致的稳态选择"
+          />
+          <span className="wave-zoom-val">{zoom.toFixed(1)}×</span>
+          {zoom !== 1 && (
+            <button className="btn ghost tiny" onClick={() => setZoom(1)}>
+              复位
+            </button>
+          )}
+        </span>
       </div>
 
+      <SteadyStateHelp />
+
+      <div className="wave-scroll">
       <svg
         ref={svgRef}
         className={`waveform ${addMode ? "adding" : ""}`}
         viewBox={`0 0 ${VB_W} ${WAVE_H}`}
         preserveAspectRatio="none"
         onPointerDown={onBackgroundDown}
+        style={{ width: `${zoom * 100}%` }}
       >
         <rect x={0} y={0} width={VB_W} height={WAVE_H} fill="#0b1020" />
         <line x1={0} y1={MID} x2={VB_W} y2={MID} stroke="#2a3350" strokeWidth={0.5} />
+        {/* time gridlines (every `gridStepMs`) for orientation when zoomed */}
+        {gridTicks.map((ms) => (
+          <g key={`grid-${ms}`}>
+            <line
+              x1={msToX(ms)}
+              y1={0}
+              x2={msToX(ms)}
+              y2={WAVE_H}
+              stroke="#243056"
+              strokeWidth={0.5}
+            />
+            <text x={msToX(ms) + 2} y={WAVE_H - 3} className="wave-tick">
+              {(ms / 1000).toFixed(ms % 1000 === 0 ? 0 : 2)}s
+            </text>
+          </g>
+        ))}
         <path d={peaksPath} fill="#5b8bf0" fillOpacity={0.85} />
 
         {sorted.map((s, i) => {
@@ -286,6 +340,7 @@ export default function WaveformEditor({
           />
         )}
       </svg>
+      </div>
 
       <div className="wave-legend">
         <span><span className="sw take" /> 切片范围（蓝框，拖顶部手柄）</span>

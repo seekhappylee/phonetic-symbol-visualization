@@ -18,7 +18,14 @@ import parselmouth
 
 from .analysis import f0_median, flattest_subwindow, formant_track, sample_formants
 from .config import Config
-from .models import AnalyzeResponse, Gender, SegmentSpec, Summary, Take
+from .models import (
+    AnalyzeResponse,
+    Gender,
+    SegmentSpec,
+    Summary,
+    Take,
+    VowelReference,
+)
 from .quality import assess_take
 from .reference import articulatory_hint, distance_to_target, target_for
 from .segmentation import (
@@ -36,6 +43,8 @@ def analyze_recording(
     target_vowel_id: str | None,
     cfg: Config,
     explicit_segments: list[SegmentSpec] | None = None,
+    reference_target: VowelReference | None = None,
+    scope_to_reference: bool = False,
 ) -> AnalyzeResponse:
     warnings: list[str] = []
     total_s = snd.get_total_duration()
@@ -64,7 +73,14 @@ def analyze_recording(
         pairs = [(seg, flattest_subwindow(formant, times, win, cfg.steady_state))
                  for seg, win in pairs]
 
-    target = target_for(gender, target_vowel_id)
+    # A user-selected reference set (if any) overrides the literature bullseye as
+    # the scoring target. When the user explicitly scoped to a set, do NOT fall
+    # back to the literature target (a vowel absent from the set has no target),
+    # so scoring stays consistent with the chosen standard.
+    if scope_to_reference:
+        target = reference_target
+    else:
+        target = reference_target or target_for(gender, target_vowel_id)
 
     takes: list[Take] = []
     valid_f1: list[float] = []

@@ -10,6 +10,11 @@
 default_gender = "male"
 # Path to the reference vowel data (relative to backend/ or absolute).
 reference_data_path = "app/data/vowels_rp.json"
+# Directory of optional secondary datasets overlaid (display-only) on the F1-F2
+# chart for comparison; each *.json is one dataset. Never affects scoring.
+reference_overlays_dir = "app/data/overlays"
+# Persistent storage for user-built reference sets (their own recordings).
+reference_sets_dir = "data/reference_sets"
 # Directory holding demonstration audio (optional; may be empty in stage 1).
 demo_audio_dir = "app/data/demo_audio"
 # Absolute path to a built frontend `dist/` to serve as static files.

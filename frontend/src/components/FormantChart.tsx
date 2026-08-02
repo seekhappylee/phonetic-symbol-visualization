@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Summary, Take, VowelReference } from "../types";
+import type { ReferenceOverlay, Summary, Take, VowelReference } from "../types";
 import { vowelColor } from "../data/vowels";
 
 interface Props {
@@ -9,7 +9,13 @@ interface Props {
   summary?: Summary | null;
   sdMultiplier?: number; // ellipse size in SD units (default 1.5)
   onPickVowel?: (id: string) => void;
+  /** Secondary literature datasets to overlay for comparison (display-only). */
+  overlays?: ReferenceOverlay[];
 }
+
+// Distinct glyph shapes cycled per overlay dataset (index order).
+const OVERLAY_SHAPES = ["triangle", "diamond", "cross"] as const;
+type OverlayShape = (typeof OVERLAY_SHAPES)[number];
 
 const W = 660;
 const H = 540;
@@ -37,12 +43,19 @@ export default function FormantChart({
   summary,
   sdMultiplier = 1.5,
   onPickVowel,
+  overlays = [],
 }: Props) {
   const [hover, setHover] = useState<string | null>(null);
 
   const okTakes = useMemo(
     () => (userTakes ?? []).filter((t) => t.quality === "ok" && t.f1 != null),
     [userTakes]
+  );
+
+  // Only overlays that actually carry data for the current gender are drawn.
+  const activeOverlays = useMemo(
+    () => overlays.filter((o) => o.has_data && o.vowels.length > 0),
+    [overlays]
   );
 
   const domain = useMemo<Domain>(() => {
@@ -64,12 +77,20 @@ export default function FormantChart({
       f1s.push(t.f1 as number);
       f2s.push(t.f2 as number);
     }
+    for (const o of activeOverlays) {
+      for (const v of o.vowels) {
+        if (v.f1_mean != null && v.f2_mean != null) {
+          f1s.push(v.f1_mean);
+          f2s.push(v.f2_mean);
+        }
+      }
+    }
     const f1min = Math.min(180, ...f1s) - 30;
     const f1max = Math.max(1100, ...f1s) + 30;
     const f2min = Math.min(700, ...f2s) - 60;
     const f2max = Math.max(2700, ...f2s) + 60;
     return { f1min, f1max, f2min, f2max };
-  }, [vowels, okTakes, sdMultiplier]);
+  }, [vowels, okTakes, activeOverlays, sdMultiplier]);
 
   const x = (f2: number) =>
     PAD.left + ((domain.f2max - f2) / (domain.f2max - domain.f2min)) * PLOT_W;
@@ -171,6 +192,41 @@ export default function FormantChart({
           );
         })}
 
+        {/* secondary reference datasets (display-only): a connector from the
+            primary bullseye to this dataset's centroid makes the drift visible */}
+        {activeOverlays.map((o, oi) => {
+          const shape = OVERLAY_SHAPES[oi % OVERLAY_SHAPES.length];
+          return (
+            <g key={`ov-${o.id}`}>
+              {o.vowels.map((ov) => {
+                if (ov.f1_mean == null || ov.f2_mean == null) return null;
+                const color = vowelColor(ov.id);
+                const ox = x(ov.f2_mean);
+                const oy = y(ov.f1_mean);
+                const prim = vowels.find((v) => v.id === ov.id);
+                const dim = hover != null && hover !== ov.id;
+                return (
+                  <g key={`ov-${o.id}-${ov.id}`} opacity={dim ? 0.25 : 1}>
+                    {prim?.f1_mean != null && prim?.f2_mean != null && (
+                      <line
+                        x1={x(prim.f2_mean)}
+                        y1={y(prim.f1_mean)}
+                        x2={ox}
+                        y2={oy}
+                        stroke={color}
+                        strokeOpacity={0.4}
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                      />
+                    )}
+                    <OverlayGlyph shape={shape} cx={ox} cy={oy} color={color} />
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+
         {/* demonstration points (real reference speaker), if available */}
         {vowels.map((v) =>
           v.demo_f1 != null && v.demo_f2 != null ? (
@@ -227,12 +283,56 @@ export default function FormantChart({
         )}
       </svg>
 
-      <Legend hasUser={okTakes.length > 0} hasDemo={vowels.some((v) => v.demo_f1 != null)} />
+      <Legend
+        hasUser={okTakes.length > 0}
+        hasDemo={vowels.some((v) => v.demo_f1 != null)}
+        overlays={activeOverlays}
+      />
     </div>
   );
 }
 
-function Legend({ hasUser, hasDemo }: { hasUser: boolean; hasDemo: boolean }) {
+/** A small SVG glyph marking one overlay dataset's vowel centroid. */
+function OverlayGlyph({
+  shape,
+  cx,
+  cy,
+  color,
+  r = 5,
+}: {
+  shape: OverlayShape;
+  cx: number;
+  cy: number;
+  color: string;
+  r?: number;
+}) {
+  const common = { fill: "none", stroke: color, strokeWidth: 2 };
+  if (shape === "triangle") {
+    const pts = `${cx},${cy - r} ${cx - r},${cy + r * 0.8} ${cx + r},${cy + r * 0.8}`;
+    return <polygon points={pts} {...common} />;
+  }
+  if (shape === "diamond") {
+    const pts = `${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}`;
+    return <polygon points={pts} {...common} />;
+  }
+  // cross
+  return (
+    <g stroke={color} strokeWidth={2}>
+      <line x1={cx - r} y1={cy - r} x2={cx + r} y2={cy + r} />
+      <line x1={cx - r} y1={cy + r} x2={cx + r} y2={cy - r} />
+    </g>
+  );
+}
+
+function Legend({
+  hasUser,
+  hasDemo,
+  overlays,
+}: {
+  hasUser: boolean;
+  hasDemo: boolean;
+  overlays: ReferenceOverlay[];
+}) {
   return (
     <div className="legend">
       <span className="legend-item">
@@ -249,6 +349,21 @@ function Legend({ hasUser, hasDemo }: { hasUser: boolean; hasDemo: boolean }) {
           <span className="swatch center" /> 你的中心 + 散布
         </span>
       )}
+      {overlays.map((o, oi) => (
+        <span className="legend-item" key={`lg-${o.id}`}>
+          <svg width={16} height={16} className="legend-glyph" aria-hidden>
+            <OverlayGlyph
+              shape={OVERLAY_SHAPES[oi % OVERLAY_SHAPES.length]}
+              cx={8}
+              cy={8}
+              color="#555"
+              r={5}
+            />
+          </svg>
+          {o.label}
+          {o.statistic === "median" ? "（中位数）" : ""}
+        </span>
+      ))}
     </div>
   );
 }

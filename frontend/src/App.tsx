@@ -1,17 +1,30 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
-import { fetchHealth, fetchVowels } from "./api/client";
-import type { Gender, HealthResponse, VowelsResponse } from "./types";
+import {
+  fetchHealth,
+  fetchOverlays,
+  fetchVowels,
+  listReferenceSets,
+} from "./api/client";
+import type {
+  Gender,
+  HealthResponse,
+  ReferenceOverlay,
+  ReferenceSet,
+  VowelsResponse,
+} from "./types";
 import TheoryPage from "./pages/TheoryPage";
 import VowelChartPage from "./pages/VowelChartPage";
 import PracticePage from "./pages/PracticePage";
+import StandardLibraryPage from "./pages/StandardLibraryPage";
 
-type Page = "theory" | "charts" | "practice";
+type Page = "theory" | "charts" | "practice" | "library";
 
 const TABS: { id: Page; label: string }[] = [
   { id: "theory", label: "① 发音原理" },
   { id: "charts", label: "② 元音图" },
   { id: "practice", label: "③ 录音练习" },
+  { id: "library", label: "④ 标准音库" },
 ];
 
 export default function App() {
@@ -20,12 +33,30 @@ export default function App() {
   const [data, setData] = useState<VowelsResponse | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [selectedVowel, setSelectedVowel] = useState<string | null>("iː");
+  const [overlays, setOverlays] = useState<ReferenceOverlay[]>([]);
+  const [enabledOverlays, setEnabledOverlays] = useState<Set<string>>(new Set());
+  const [referenceSets, setReferenceSets] = useState<ReferenceSet[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const reloadSets = useCallback(() => {
+    listReferenceSets()
+      .then((r) => setReferenceSets(r.sets))
+      .catch(() => setReferenceSets([]));
+  }, []);
+
+  const toggleOverlay = useCallback((id: string) => {
+    setEnabledOverlays((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     fetchHealth().then(setHealth).catch(() => setHealth(null));
-  }, []);
+    reloadSets();
+  }, [reloadSets]);
 
   useEffect(() => {
     setLoading(true);
@@ -34,6 +65,13 @@ export default function App() {
       .then(setData)
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
+  }, [gender]);
+
+  // Overlay datasets are optional; a failure here must not break the app.
+  useEffect(() => {
+    fetchOverlays(gender)
+      .then((r) => setOverlays(r.overlays))
+      .catch(() => setOverlays([]));
   }, [gender]);
 
   return (
@@ -88,6 +126,9 @@ export default function App() {
             data={data}
             selectedVowel={selectedVowel}
             onSelectVowel={setSelectedVowel}
+            overlays={overlays}
+            enabledOverlays={enabledOverlays}
+            onToggleOverlay={toggleOverlay}
           />
         )}
         {data && page === "practice" && (
@@ -97,6 +138,18 @@ export default function App() {
             ffmpegAvailable={health?.ffmpeg_available ?? true}
             selectedVowel={selectedVowel}
             onSelectVowel={setSelectedVowel}
+            overlays={overlays}
+            enabledOverlays={enabledOverlays}
+            onToggleOverlay={toggleOverlay}
+            referenceSets={referenceSets}
+          />
+        )}
+        {data && page === "library" && (
+          <StandardLibraryPage
+            data={data}
+            sets={referenceSets}
+            globalGender={gender}
+            onSetsChanged={reloadSets}
           />
         )}
       </main>

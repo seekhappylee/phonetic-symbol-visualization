@@ -1,0 +1,24 @@
+{
+  "id": "ferragne_sse",
+  "label": "Ferragne 2010 · 伦敦南部 (sse)",
+  "source": "Ferragne, E. & Pellegrino, F. (2010). Formant frequencies of vowels in 13 accents of the British Isles. JIPA 40(1), 1-34. — Table 3, accent 'sse' (Standard Southern English, London).",
+  "note": "中位数（非均值），朗读关键词，仅男声 6 人，半自动测量。当代南部英音，可对照现代 BBC 发音；仅供可视化对照，不参与评分/靶心判定。",
+  "statistic": "median",
+  "unit": "Hz",
+  "genders": {
+    "male": [
+      {"id": "iː", "f1_mean": 273, "f2_mean": 2289},
+      {"id": "ɪ",  "f1_mean": 386, "f2_mean": 2038},
+      {"id": "e",  "f1_mean": 527, "f2_mean": 1801},
+      {"id": "æ",  "f1_mean": 751, "f2_mean": 1558},
+      {"id": "ʌ",  "f1_mean": 623, "f2_mean": 1370},
+      {"id": "ɑː", "f1_mean": 655, "f2_mean": 1044},
+      {"id": "ɒ",  "f1_mean": 552, "f2_mean": 986},
+      {"id": "ɔː", "f1_mean": 452, "f2_mean": 793},
+      {"id": "ʊ",  "f1_mean": 397, "f2_mean": 1550},
+      {"id": "uː", "f1_mean": 291, "f2_mean": 1672},
+      {"id": "ɜː", "f1_mean": 527, "f2_mean": 1528}
+    ],
+    "female": []
+  }
+}

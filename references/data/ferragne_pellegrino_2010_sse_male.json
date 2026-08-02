@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "source": "Ferragne, E. & Pellegrino, F. (2010). Formant frequencies of vowels in 13 accents of the British Isles. Journal of the International Phonetic Association, 40(1), 1-34.",
+    "extracted_from": "Table 3 (Median formant values for the 11 monophthongs, Hz). Local PDF: references/pdf/Ferragne_Pellegrino_2010_British_Isles_formants.pdf",
+    "accent_code": "sse",
+    "accent": "Standard Southern English (London) — the RP-comparable accent in the ABI corpus",
+    "corpus": "Accents of the British Isles (ABI), read /hVd/-style keywords",
+    "statistic": "median (NOT mean); semi-automatic formant measurement",
+    "gender": "male only (this study measured male speakers)",
+    "n_speakers": 6,
+    "unit": "Hz",
+    "notation": "DJ / Gimson (mapped from ABI keywords)",
+    "caveat": "Different method from Deterding (1997): medians vs means, read keywords vs connected speech, male-only. Use for shape/relative comparison, not exact absolute matching."
+  },
+  "keyword_map": {
+    "iː": "heed", "ɪ": "hid", "e": "head", "æ": "had", "ɑː": "hard",
+    "ɒ": "hod", "ɔː": "hoard", "ʊ": "hood", "uː": "who'd", "ʌ": "Hudd", "ɜː": "heard"
+  },
+  "male": [
+    {"id": "iː", "example_word": "heed", "f1_median": 273, "f2_median": 2289},
+    {"id": "ɪ",  "example_word": "hid",  "f1_median": 386, "f2_median": 2038},
+    {"id": "e",  "example_word": "head", "f1_median": 527, "f2_median": 1801},
+    {"id": "æ",  "example_word": "had",  "f1_median": 751, "f2_median": 1558},
+    {"id": "ɑː", "example_word": "hard", "f1_median": 655, "f2_median": 1044},
+    {"id": "ɒ",  "example_word": "hod",  "f1_median": 552, "f2_median": 986},
+    {"id": "ɔː", "example_word": "hoard","f1_median": 452, "f2_median": 793},
+    {"id": "ʊ",  "example_word": "hood", "f1_median": 397, "f2_median": 1550},
+    {"id": "uː", "example_word": "who'd","f1_median": 291, "f2_median": 1672},
+    {"id": "ʌ",  "example_word": "Hudd", "f1_median": 623, "f2_median": 1370},
+    {"id": "ɜː", "example_word": "heard","f1_median": 527, "f2_median": 1528}
+  ]
+}

@@ -11,7 +11,14 @@ from functools import lru_cache
 from pathlib import Path
 
 from .config import Config, settings
-from .models import Gender, VowelReference, VowelsResponse
+from .models import (
+    Gender,
+    OverlaysResponse,
+    OverlayVowel,
+    ReferenceOverlay,
+    VowelReference,
+    VowelsResponse,
+)
 
 
 @dataclass
@@ -64,6 +71,49 @@ def vowels_response(gender: Gender) -> VowelsResponse:
         unit=data.unit,
         vowels=vowels,
     )
+
+
+# --------------------------------------------------------------------------- #
+# Secondary datasets overlaid on the chart for comparison (display-only; they do
+# NOT drive analysis/scoring). Each *.json in the overlays dir is one dataset.
+# --------------------------------------------------------------------------- #
+
+@lru_cache(maxsize=1)
+def _load_overlays_raw() -> tuple[dict, ...]:
+    d: Path = settings.overlays_path()
+    if not d.is_dir():
+        return ()
+    out: list[dict] = []
+    for p in sorted(d.glob("*.json")):
+        try:
+            out.append(json.loads(p.read_text(encoding="utf-8")))
+        except (OSError, json.JSONDecodeError):
+            continue  # a malformed overlay must never break the primary reference
+    return tuple(out)
+
+
+def overlays_response(gender: Gender) -> OverlaysResponse:
+    overlays: list[ReferenceOverlay] = []
+    for o in _load_overlays_raw():
+        vowels_raw = (o.get("genders", {}) or {}).get(gender, []) or []
+        vowels = [
+            OverlayVowel(**{k: vv.get(k) for k in OverlayVowel.model_fields})
+            for vv in vowels_raw
+            if vv.get("f1_mean") is not None and vv.get("f2_mean") is not None
+        ]
+        overlays.append(
+            ReferenceOverlay(
+                id=o["id"],
+                label=o["label"],
+                source=o["source"],
+                note=o.get("note"),
+                statistic=o.get("statistic", "mean"),
+                gender=gender,
+                has_data=len(vowels) > 0,
+                vowels=vowels,
+            )
+        )
+    return OverlaysResponse(gender=gender, overlays=overlays)
 
 
 def target_for(gender: Gender, vowel_id: str | None) -> VowelReference | None:

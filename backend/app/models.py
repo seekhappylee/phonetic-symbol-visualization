@@ -37,6 +37,78 @@ class VowelsResponse(BaseModel):
     vowels: list[VowelReference]
 
 
+class OverlayVowel(BaseModel):
+    """A single vowel centroid from a secondary (display-only) reference dataset.
+    SD may be absent (many datasets publish only a central value)."""
+
+    id: str
+    f1_mean: Optional[float] = None
+    f2_mean: Optional[float] = None
+    f1_sd: Optional[float] = None
+    f2_sd: Optional[float] = None
+
+
+class ReferenceOverlay(BaseModel):
+    """An extra literature dataset overlaid on the F1-F2 chart for comparison.
+    It does NOT drive analysis/scoring (that stays on the primary reference)."""
+
+    id: str
+    label: str
+    source: str
+    note: Optional[str] = None
+    statistic: str = "mean"  # e.g. "mean" | "median"
+    gender: Gender
+    has_data: bool = True
+    vowels: list[OverlayVowel] = Field(default_factory=list)
+
+
+class OverlaysResponse(BaseModel):
+    gender: Gender
+    overlays: list[ReferenceOverlay] = Field(default_factory=list)
+
+
+class ReferenceSetVowel(BaseModel):
+    """One analyzed vowel inside a user-built reference set (from their own
+    uploaded / recorded audio). Audio is stored for playback as a demo."""
+
+    id: str
+    f1_mean: Optional[float] = None
+    f2_mean: Optional[float] = None
+    f3_mean: Optional[float] = None
+    start_ms: Optional[float] = None
+    end_ms: Optional[float] = None
+    steady_start_ms: Optional[float] = None
+    steady_end_ms: Optional[float] = None
+    quality: Optional[Quality] = None
+    has_audio: bool = False
+
+
+class ReferenceSet(BaseModel):
+    """A user-created 'standard' F1/F2 set, selectable later as the comparison
+    target (replacing the literature bullseyes) with playable demo audio."""
+
+    id: str
+    name: str
+    gender: Gender
+    created_at: str
+    updated_at: str
+    vowels: list[ReferenceSetVowel] = Field(default_factory=list)
+
+
+class ReferenceSetCreate(BaseModel):
+    name: str
+    gender: Gender
+
+
+class ReferenceSetPatch(BaseModel):
+    name: Optional[str] = None
+    gender: Optional[Gender] = None
+
+
+class ReferenceSetsResponse(BaseModel):
+    sets: list[ReferenceSet] = Field(default_factory=list)
+
+
 class SegmentSpec(BaseModel):
     """A client-supplied analysis region (from the waveform editor). Times in ms
     relative to the start of the recording. steady_* is the sub-window actually

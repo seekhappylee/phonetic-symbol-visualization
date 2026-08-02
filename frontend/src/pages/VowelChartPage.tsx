@@ -1,11 +1,15 @@
 import FormantChart from "../components/FormantChart";
 import IpaQuadrilateral from "../components/IpaQuadrilateral";
-import type { VowelsResponse } from "../types";
+import OverlayControls from "../components/OverlayControls";
+import type { ReferenceOverlay, VowelsResponse } from "../types";
 
 interface Props {
   data: VowelsResponse;
   selectedVowel: string | null;
   onSelectVowel: (id: string) => void;
+  overlays: ReferenceOverlay[];
+  enabledOverlays: Set<string>;
+  onToggleOverlay: (id: string) => void;
 }
 
 /**
@@ -13,7 +17,15 @@ interface Props {
  * (articulatory) and the reversed-axis F1-F2 chart (acoustic). Clicking a vowel
  * in either highlights it in both, making the shape correspondence explicit.
  */
-export default function VowelChartPage({ data, selectedVowel, onSelectVowel }: Props) {
+export default function VowelChartPage({
+  data,
+  selectedVowel,
+  onSelectVowel,
+  overlays,
+  enabledOverlays,
+  onToggleOverlay,
+}: Props) {
+  const activeOverlays = overlays.filter((o) => enabledOverlays.has(o.id));
   return (
     <div className="page chart-page">
       <h2>两张元音图：舌位（发音） vs 共振峰（声学）</h2>
@@ -47,17 +59,28 @@ export default function VowelChartPage({ data, selectedVowel, onSelectVowel }: P
         </figure>
         <figure>
           <figcaption>F1–F2 共振峰图（声学，反向坐标）</figcaption>
+          <OverlayControls
+            overlays={overlays}
+            enabled={enabledOverlays}
+            onToggle={onToggleOverlay}
+          />
           <FormantChart
             vowels={data.vowels}
             targetVowelId={selectedVowel}
             onPickVowel={onSelectVowel}
+            overlays={activeOverlays}
           />
         </figure>
       </div>
 
       {selectedVowel && <SelectedInfo data={data} id={selectedVowel} />}
 
-      <p className="source-line">数据来源：{data.source}</p>
+      <p className="source-line">主参考（靶心）：{data.source}</p>
+      {activeOverlays.map((o) => (
+        <p className="source-line" key={`src-${o.id}`}>
+          对照数据集：{o.source}
+        </p>
+      ))}
     </div>
   );
 }

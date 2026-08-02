@@ -39,7 +39,8 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - 健康检查 / 环境自检：`GET http://localhost:8000/api/health`
-- 参考数据：`GET http://localhost:8000/api/vowels`
+- 参考数据（主靶心）：`GET http://localhost:8000/api/vowels`
+- 对照数据集（叠加层，仅展示不评分）：`GET http://localhost:8000/api/reference-overlays`
 - 交互式 API 文档：`http://localhost:8000/docs`
 
 ### 前端
@@ -82,3 +83,27 @@ npm run dev                   # Vite dev server，默认 http://localhost:5173
 - Deterding (1997) 只测量 11 个单元音，**不含弱读央元音 /ə/**；/ə/ 在数据中标记为无文献参考值，前端优雅占位。
 
 生成脚本：`backend/app/data/generate_vowels_rp.py`（内含论文原始逐说话人数据，可复算）。
+
+### 多数据集对照（叠加层）
+
+Deterding 是 1980 年代 BBC 播音员，属传统 RP；当代英音已漂移（GOOSE/FOOT 前移、TRAP 更开等），
+所以自录的现代发音常和单一靶心对不上。为此支持在 F1–F2 图上叠加**额外文献数据集**做对照：
+
+- 数据放 `backend/app/data/overlays/*.json`（每个文件一套），格式见现有
+  `ferragne_2010_sse.json`（Ferragne & Pellegrino 2010，伦敦南部 sse，男声中位数）。
+- 前端「② 元音图 / ③ 录音练习」页图上方有「对照数据集」开关；开启后叠加该数据集的元音质心，
+  并从主靶心画一条虚线连到叠加点，直观显示漂移方向。**叠加层只作可视化对照，不参与评分/靶心判定**。
+- 更多文献与数据对照见仓库根目录 `references/`。
+
+### ④ 标准音库：用自己的录音建立对比标准
+
+除文献靶心外，可在「④ 标准音库」页用**自己的录音/上传**逐个元音建立一套「标准」，
+之后在「③ 录音练习」里选它作对比靶心：
+
+- **逐元音构建**：对每个元音录音或上传音频 → 在波形图上切片、选稳态段（可拉长横轴细调，
+  并有「如何选择稳态段」的可展开提醒）→ 保存该元音的 F1/F2 与示范音。
+- **命名 + 男女**：整套可命名、选性别基准；支持多套并存、随时增删元音。
+- **作为靶心**：练习页「参考标准」下拉可选「文献 Deterding」或任一自建标准；
+  选中自建标准后，靶心、距离与舌位提示都按该套计算，并可**回放该元音的示范音**。
+- **存储**：持久化在 `backend/data/reference_sets/<id>/`（`meta.json` + `audio/*.wav`），
+  已在 `.gitignore` 中（属运行时用户数据）。相关接口：`/api/reference-sets*`。
